@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandboxie-Plus 版本更新监控</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #777777;
+            --primary-color: #2c3e50;
+            --stable-color: #2ecc71;
+            --beta-color: #e67e22;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .release-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid transparent;
+        }
+
+        .release-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
+        .stable {
+            border-left-color: var(--stable-color);
+        }
+
+        .beta {
+            border-left-color: var(--beta-color);
+        }
+
+        .info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .version-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .badge.stable-badge { background-color: var(--stable-color); }
+        .badge.beta-badge { background-color: var(--beta-color); }
+
+        .date {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .download-btn {
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+
+        .download-btn:hover {
+            background-color: #1a252f;
+        }
+
+        #loading {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            padding: 20px;
+        }
+
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Sandboxie-Plus 版本监控</h1>
+    <p class="subtitle">实时抓取自 GitHub 官方发布记录</p>
+
+    <div id="loading">正在努力从 GitHub 抓取数据，请稍候...</div>
+    <div class="container" id="releases-container"></div>
+
+    <script>
+        // GitHub API 接口地址
+        const API_URL = 'https://api.github.com/repos/sandboxie-plus/Sandboxie/releases';
+        const container = document.getElementById('releases-container');
+        const loading = document.getElementById('loading');
+
+        async function fetchReleases() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`API 请求失败，状态码: ${response.status} (可能是触发了 GitHub API 速率限制)`);
+                }
+                const releases = await response.json();
+                renderReleases(releases);
+            } catch (error) {
+                loading.style.display = 'none';
+                container.innerHTML = `<div class="error">抓取失败：${error.message}</div>`;
+            }
+        }
+
+        function renderReleases(releases) {
+            loading.style.display = 'none';
+            container.innerHTML = '';
+
+            releases.forEach(release => {
+                // 判断是否为预览版
+                const isPreRelease = release.prerelease;
+                const cardClass = isPreRelease ? 'beta' : 'stable';
+                const badgeClass = isPreRelease ? 'beta-badge' : 'stable-badge';
+                const badgeText = isPreRelease ? 'Beta 预览版' : 'Stable 正式版';
+
+                // 格式化日期
+                const dateObj = new Date(release.published_at);
+                const dateStr = dateObj.toLocaleDateString('zh-CN', { 
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                // 创建卡片 HTML
+                const cardHTML = `
+                    <div class="release-card ${cardClass}">
+                        <div class="info">
+                            <h2 class="version-title">
+                                ${release.name || release.tag_name}
+                                <span class="badge ${badgeClass}">${badgeText}</span>
+                            </h2>
+                            <div class="date">发布时间：${dateStr}</div>
+                        </div>
+                        <a href="${release.html_url}" target="_blank" class="download-btn">查看详情 / 下载</a>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        // 页面加载完成后立即抓取
+        fetchReleases();
+    </script>
+</body>
+</html>
